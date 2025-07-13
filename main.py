@@ -1,28 +1,19 @@
-
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 import openai
-from fastapi.middleware.cors import CORSMiddleware
 import os
 
 app = FastAPI()
 
-# Permitir requisições de qualquer origem (para teste)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Defina sua chave secreta da OpenAI como variável de ambiente no Render (não aqui diretamente)
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-# 🔐 SUA API KEY AQUI (SEGURA)
-openai.api_key = "SUA_CHAVE_API_AQUI"
 
-@app.post("/proxy")
-async def proxy(request: Request):
-    data = await request.json()
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=data["messages"]
-    )
-    return response
+@app.post("/v1/chat/completions")
+async def chat_completions(request: Request):
+    try:
+        body = await request.json()
+        response = openai.ChatCompletion.create(**body)
+        return JSONResponse(content=response)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
