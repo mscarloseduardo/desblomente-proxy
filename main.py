@@ -6,22 +6,18 @@ import openai
 
 # Carrega variáveis do .env
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")  # <- ESTA LINHA É ESSENCIAL
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Inicializa FastAPI
 app = FastAPI()
 
-# Mensagem de teste para rota principal
 @app.get("/")
 def root():
     return {"status": "Servidor DesbloMente ativo e rodando."}
 
-# Rota de proxy para o Lovable (ou outro front)
 @app.post("/chat")
 async def chat(request: Request):
     try:
         body = await request.json()
-
         messages = body.get("messages", [])
         model = body.get("model", "gpt-4")
         temperature = body.get("temperature", 0.7)
@@ -32,7 +28,20 @@ async def chat(request: Request):
             temperature=temperature
         )
 
-        return JSONResponse(content=response)
-    
+        result = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response.choices[0].message["content"]
+                    }
+                }
+            ]
+        }
+
+        return JSONResponse(content=result)
+
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
