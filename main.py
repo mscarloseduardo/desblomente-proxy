@@ -1,40 +1,41 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
-# Middleware de CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Ajuste para ["https://lovable.dev"] se quiser restringir depois
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Garanta que não tenha \n invisível na chave
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-OPENAI_API_BASE = "https://api.openai.com/v1"
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 @app.post("/v1/chat/completions")
-async def proxy(request: Request):
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    body = await request.body()
+async def proxy_completion(req: Request):
+    try:
+        body = await req.body()
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{OPENAI_API_BASE}/chat/completions",
-            headers=headers,
-            content=body
+        async with httpx.AsyncClient(timeout=30.0) as client:  # ⏱️ Timeout aumentado
+            r = await client.post("https://api.openai.com/v1/chat/completions", content=body, headers=headers)
+
+        return Response(content=r.content, status_code=r.status_code)
+
+    except httpx.ReadTimeout:
+        return JSONResponse(
+            status_code=504,
+            content={
+                "error": "O servidor demorou muito para responder. Que tal tentar novamente em alguns segundos?"
+            }
         )
-    
-    return JSONResponse(
-        status_code=response.status_code,
-        content=response.json()
-    )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": f"Algo deu errado no servidor: {str(e)}. Por favor, tente novamente mais tarde."
+            }
+        )
