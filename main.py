@@ -1,16 +1,11 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -21,22 +16,10 @@ async def chat(request: Request):
     model = body.get("model", "gpt-4")
     temperature = body.get("temperature", 0.7)
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature
-        )
+    response = client.chat.completions.create(
+        model=model,
+        temperature=temperature,
+        messages=messages
+    )
 
-        return {
-            "choices": [
-                {
-                    "message": {
-                        "content": response.choices[0].message.content
-                    }
-                }
-            ]
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
+    return {"choices": [{"message": {"content": response.choices[0].message.content}}]}
