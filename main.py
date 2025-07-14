@@ -1,41 +1,37 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import httpx
-import os
 from dotenv import load_dotenv
+import os
+import openai
 
+# Carrega variáveis do .env
 load_dotenv()
 
+# Inicializa FastAPI
 app = FastAPI()
 
-API_KEY = os.getenv("OPENAI_API_KEY")
+# Mensagem de teste para rota principal
+@app.get("/")
+def root():
+    return {"status": "Servidor DesbloMente ativo e rodando."}
 
-@app.post("/v1/chat/completions")
-async def proxy_completion(req: Request):
+# Rota de proxy para o Lovable (ou outro front)
+@app.post("/chat")
+async def chat(request: Request):
     try:
-        body = await req.body()
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json"
-        }
+        body = await request.json()
 
-        async with httpx.AsyncClient(timeout=30.0) as client:  # ⏱️ Timeout aumentado
-            r = await client.post("https://api.openai.com/v1/chat/completions", content=body, headers=headers)
+        messages = body.get("messages", [])
+        model = body.get("model", "gpt-4")
+        temperature = body.get("temperature", 0.7)
 
-        return Response(content=r.content, status_code=r.status_code)
-
-    except httpx.ReadTimeout:
-        return JSONResponse(
-            status_code=504,
-            content={
-                "error": "O servidor demorou muito para responder. Que tal tentar novamente em alguns segundos?"
-            }
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            temperature=temperature
         )
 
+        return JSONResponse(content=response)
+    
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": f"Algo deu errado no servidor: {str(e)}. Por favor, tente novamente mais tarde."
-            }
-        )
+        return JSONResponse(content={"error": str(e)}, status_code=500)
