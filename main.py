@@ -1,45 +1,42 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from openai import OpenAI
 import os
-import openai
-
-load_dotenv()
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-def root():
-    return {"status": "Servidor DesbloMente ativo e rodando."}
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.post("/chat")
 async def chat(request: Request):
+    body = await request.json()
+    messages = body.get("messages", [])
+    model = body.get("model", "gpt-4")
+    temperature = body.get("temperature", 0.7)
+
     try:
-        body = await request.json()
-
-        messages = body.get("messages", [])
-        model = body.get("model", "gpt-4")
-        temperature = body.get("temperature", 0.7)
-
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature
         )
 
-        # Extrai só o texto da resposta
-        content = response.choices[0].message.content
-
-        return JSONResponse(content={"message": content})
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": response.choices[0].message.content
+                    }
+                }
+            ]
+        }
 
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return {"error": str(e)}
