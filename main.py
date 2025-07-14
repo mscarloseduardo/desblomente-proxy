@@ -1,34 +1,33 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
-from dotenv import load_dotenv
 import os
-
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+import traceback
 
 app = FastAPI()
 
-# Libera acesso CORS para qualquer origem (necessário para Lovable e testes externos)
+# CORS para permitir chamadas do Lovable ou outras origens
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ou substitua por ["https://lovable.app"] se quiser limitar
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Cliente OpenAI usando chave vinda do ambiente
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 @app.post("/chat")
 async def chat(request: Request):
-    data = await request.json()
-    
     try:
+        data = await request.json()
         response = client.chat.completions.create(
-            model=data["model"],
-            temperature=data.get("temperature", 0.7),
-            messages=data["messages"]
+            model=data.get("model", "gpt-4"),
+            messages=data["messages"],
+            temperature=data.get("temperature", 0.7)
         )
-        return { "response": response.choices[0].message.content }
-    
+        return {"response": response.choices[0].message.content}
     except Exception as e:
-        return { "error": str(e) }
+        print("Erro interno:\n", traceback.format_exc())
+        return {"error": str(e)}
