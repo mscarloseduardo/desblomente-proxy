@@ -6,10 +6,10 @@ import os
 
 app = FastAPI()
 
-# Adiciona o middleware de CORS para aceitar requisições externas (Lovable, etc)
+# Middleware CORS para aceitar requisições externas (Lovable, etc)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Você pode trocar "*" por "https://lovable.dev" para mais segurança depois
+    allow_origins=["*"],  # Para mais segurança depois, troque "*" por domínios confiáveis
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,20 +20,27 @@ OPENAI_API_BASE = "https://api.openai.com/v1"
 
 @app.post("/v1/chat/completions")
 async def proxy(request: Request):
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    body = await request.body()
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        body = await request.body()
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{OPENAI_API_BASE}/chat/completions",
-            headers=headers,
-            content=body
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{OPENAI_API_BASE}/chat/completions",
+                headers=headers,
+                content=body
+            )
+
+        return JSONResponse(
+            status_code=response.status_code,
+            content=response.json()
         )
     
-    return JSONResponse(
-        status_code=response.status_code,
-        content=response.json()
-    )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
