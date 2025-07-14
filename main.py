@@ -6,6 +6,7 @@ import openai
 
 # Carrega variáveis do .env
 load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")  # <- ESTA LINHA É ESSENCIAL
 
 # Inicializa FastAPI
 app = FastAPI()
