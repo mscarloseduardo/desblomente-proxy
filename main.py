@@ -14,15 +14,26 @@ async def proxy(request: Request):
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json"
     }
+
+    # 🧪 CAPTURA O CORPO DA REQUISIÇÃO
     body = await request.body()
+    print("➡️ Corpo recebido:", body.decode())
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{OPENAI_API_BASE}/chat/completions",
-            headers=headers,
-            content=body
-        )
-    
+        try:
+            response = await client.post(
+                f"{OPENAI_API_BASE}/chat/completions",
+                headers=headers,
+                content=body
+            )
+        except Exception as e:
+            print("❌ Erro ao chamar a OpenAI:", str(e))
+            return JSONResponse(status_code=500, content={"error": "Erro ao chamar a OpenAI"})
+
+    # 🧪 MOSTRA A RESPOSTA DA OPENAI
+    print("⬅️ Status:", response.status_code)
+    print("⬅️ Conteúdo:", response.text)
+
     return JSONResponse(
         status_code=response.status_code,
         content=response.json()
